@@ -1,0 +1,75 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      RACK_ENV: production
+      REQUEST_LIMIT: "60"
+      WINDOW_SECONDS: "60"
+      PORT: "4567"
+    depends_on:
+      redis:
+        condition: service_healthy
+    # The app listens on 4567. We have intentionally NOT published it to the host —
+    # part of the task is to put nginx in front as the public entrypoint.
+    expose:
+      - "4567"
+    networks:
+      - crawlbase-network
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4567/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped  
+
+  redis:
+    image: redis:7-alpine
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - crawlbase-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_HTTP_PORT:-3000}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - crawlbase-network
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+  
+networks:
+  crawlbase-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+
+
+
