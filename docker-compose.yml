@@ -1,5 +1,6 @@
 services:
   app:
+    container_name: crawlbase-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -27,6 +28,7 @@ services:
     restart: unless-stopped  
 
   redis:
+    container_name: crawlbase-redis
     image: redis:7-alpine
     command: >
       redis-server
@@ -46,6 +48,7 @@ services:
     restart: unless-stopped
 
   nginx:
+    container_name: crawlbase-nginx
     image: nginx:1.27-alpine
     ports:
       - "${NGINX_HTTP_PORT:-3000}:80"
@@ -63,7 +66,19 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
-  
+
+  lint:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUNDLE_WITHOUT: "test"
+    volumes:
+      - .:/app
+    working_dir: /app
+    user: app
+    command: bundle exec rubocop
+
 networks:
   crawlbase-network:
     driver: bridge

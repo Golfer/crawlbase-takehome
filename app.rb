@@ -1,56 +1,71 @@
-require "sinatra"
-require "redis"
-require "json"
+# frozen_string_literal: true
 
-# --- Configuration -----------------------------------------------------------
-set :bind, "0.0.0.0"
-set :port, 4567
+require 'sinatra'
+require 'json'
 
-REQUEST_LIMIT  = 60   # requests allowed per token...
-WINDOW_SECONDS = 60   # ...within this rolling window
+require_relative 'lib/config'
+require_relative 'lib/dependencies'
+require_relative 'lib/api/error_handlers'
+require_relative 'lib/api/json_responses'
+require_relative 'lib/api/request_guards'
 
-# Redis connection. REDIS_URL is provided by docker-compose.
-def redis
-  @redis ||= Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379"))
+configure do
+  set :bind, '0.0.0.0'
+  set :port, Integer(ENV.fetch('PORT', 4567))
+  set :config, AppConfig.load
+  set :dependencies, Dependencies.new(settings.config)
 end
 
-# Read the API token from the request header (X-Api-Token).
-def api_token
-  request.env["HTTP_X_API_TOKEN"]
-end
+register Api::ErrorHandlers
+helpers Api::JsonResponses, Api::RequestGuards
 
 before do
   content_type :json
 end
 
+get '/' do
+  json_ok(
+    {
+      service: 'crawlbase-tracker',
+      status: 'ok',
+      endpoints: {
+        health: { method: 'GET', path: '/health' },
+        track: { method: 'POST', path: '/track', auth: 'X-Api-Token header' },
+        stats: { method: 'GET', path: '/stats/:token' }
+      }
+    }
+  )
+end
+
 # --- POST /track -------------------------------------------------------------
 # Record a request for the given token and enforce the rate limit.
-post "/track" do
-  token = api_token
-  halt 400, { error: "Missing X-Api-Token header" }.to_json if token.nil? || token.empty?
 
-  # TODO: implement rate limiting here.
-  #   - Count this request against the token's current window in Redis.
-  #   - Within the limit (<= REQUEST_LIMIT): return 200 with the current count.
-  #   - Over the limit: return 429 with a JSON error and a Retry-After header.
-  #   - Choose and document your window strategy (fixed vs sliding).
-  #   - Think about atomicity: the counter must be correct under concurrent requests.
+#   - Count this request against the token's current window in Redis.
+#   - Within the limit (<= REQUEST_LIMIT): return 200 with the current count.
+#   - Over the limit: return 429 with a JSON error and a Retry-After header.
+#   - Choose and document your window strategy (fixed vs sliding).
+#   - Think about atomicity: the counter must be correct under concurrent requests.
 
-  halt 501, { error: "Not implemented" }.to_json
+post '/track' do
+  token = require_api_token!
+  result = settings.dependencies.rate_limiter.track(token)
+
+  render_track_response(result)
 end
 
 # --- GET /stats/:token -------------------------------------------------------
 # Return the current request count and remaining quota for a token.
-get "/stats/:token" do
-  token = params["token"]
+get '/stats/:token' do
+  token = require_param!('token', error: 'Missing token')
+  stats = settings.dependencies.rate_limiter.stats(token)
 
-  # TODO: return the current count and remaining quota for this token
-  #       in the active window.
-
-  halt 501, { error: "Not implemented" }.to_json
+  json_ok(stats.to_h)
 end
 
 # --- GET /health (already implemented) ---------------------------------------
-get "/health" do
-  { status: "ok" }.to_json
+get '/health' do
+  settings.dependencies.redis.ping
+  json_ok({ status: 'ok' })
+rescue Redis::BaseError
+  halt 503, { status: 'unhealthy', error: 'redis unavailable' }.to_json
 end

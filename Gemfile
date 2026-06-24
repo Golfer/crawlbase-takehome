@@ -1,13 +1,19 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
-ruby "~>3.3.0"
+source 'https://rubygems.org'
 
-gem "sinatra", "~> 4.0"
-gem "rackup", "~> 2.1"   # required to run Sinatra on Rack 3+
-gem "puma", "~> 6.4"
-gem "redis", "~> 5.2"
+ruby '~>3.3.0'
+
+gem 'puma', '~> 6.4'
+gem 'rackup', '~> 2.1' # required to run Sinatra on Rack 3+
+gem 'redis', '~> 5.2'
+gem 'sinatra', '~> 4.0'
 
 group :test do
-  gem "rspec", "~> 3.13"
-  gem "rack-test", "~> 2.1"
+  gem 'rack-test', '~> 2.1'
+  gem 'rspec', '~> 3.13'
+end
+
+group :development, :test do
+  gem 'rubocop', require: false
 end
