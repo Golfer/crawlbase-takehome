@@ -10,6 +10,14 @@ docker compose up --build -d
 ````
 docker compose run --rm lint bundle exec rubocop
 ````
+
+
+Run tests
+
+````
+docker compose run --rm test bundle exec rspec
+````
+
 <!-- The command(s) to bring everything up (e.g. `docker compose up`),
      and how to hit the endpoints once it's running. -->
 
@@ -21,12 +29,14 @@ curl -X POST http://localhost:3000/track \
 ````
 
 ## Design decisions
- 
+- REDIS: I choosed Sliding stratage because it better for owr case. At requirment we have a request to rate limit request per PERIOD - It best approach to use SLIDING strategy stored owr data. Big problem what we sole is N request from NOW per setted period. Advantage of solution to predicted Retry-After oldest request expires for end customer and get real wait time.
 
-<!-- Explain your key choices:
-     - Which window strategy did you use (fixed vs sliding) and why?
-     - How did you enforce the limit atomically in Redis?
-     - Anything notable about your nginx setup? -->
+- NGIX setup: 
+  - owr App use internal network and revers all requst to NGIX.
+  - Setup and configure PUMA custome setup to ensure that we alwais use revers proxy to PUMA.
+  - Instead TCP conenction at puma I setup  idle connections to have less latency and load under traffic.
+  - Set real IP and schema forwarding
+
 
 ## Tradeoffs / what I'd do with more time
 
@@ -39,8 +49,3 @@ curl -X POST http://localhost:3000/track \
   - nginx configuration for create great and correct setup
   - Redis sliding storage config (lib/rate_limit/track/script.lua)
   - Do quick fix when I cought some stuck or worse error
-
-<!-- Please be specific and honest:
-     - Which AI tools you used, and for what.
-     - One thing the agent got right that saved you time.
-     - One thing it got wrong or led you astray on, and how you caught it. -->

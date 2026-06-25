@@ -68,6 +68,7 @@ services:
     restart: unless-stopped
 
   lint:
+    container_name: crawlbase-lint
     build:
       context: .
       dockerfile: Dockerfile
@@ -80,6 +81,7 @@ services:
     command: bundle exec rubocop
 
   test:
+    container_name: crawlbase-test
     build:
       context: .
       dockerfile: Dockerfile

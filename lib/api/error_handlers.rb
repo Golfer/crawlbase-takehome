@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  # Registers Sinatra error handlers for dependency failures.
+  # Registers error handlers for dependency failures.
   module ErrorHandlers
     def self.registered(app)
       app.error Redis::BaseError do

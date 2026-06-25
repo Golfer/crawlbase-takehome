@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Api
-  # JSON response helpers for Sinatra routes.
+  # JSON response helpers for routes.
   module JsonResponses
     def json_ok(body, http_status: 200)
       status http_status
