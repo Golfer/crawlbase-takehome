@@ -2,6 +2,7 @@
 
 module RateLimit
   module Track
+    # Loads and runs the atomic track Lua script on Redis.
     class Script
       SOURCE = File.read(File.join(__dir__, 'script.lua'), freeze: true).freeze
 

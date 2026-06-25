@@ -79,6 +79,34 @@ services:
     user: app
     command: bundle exec rubocop
 
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUNDLE_WITHOUT: "development"
+    environment:
+      REDIS_URL: redis://redis:6379/15
+      RACK_ENV: test
+      REQUEST_LIMIT: "3"
+      WINDOW_SECONDS: "60"
+      PROXY_TEST_URL: http://nginx
+      PROXY_REQUEST_LIMIT: "60"
+    depends_on:
+      redis:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+      nginx:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    working_dir: /app
+    user: app
+    networks:
+      - crawlbase-network
+    command: bundle exec rspec --tag ~proxy
+
 networks:
   crawlbase-network:
     driver: bridge
